@@ -26,40 +26,24 @@
 using boost::asio::ip::tcp;
 using namespace std;
 using chat_message_queue = std::deque<chat_message>;
-class chat_participant{//聊天时间基类
-    public:
-    //using chat_participant_ptr=shared_ptr<chat_participant>;
-    virtual ~chat_participant(){}
-    virtual void deliver(const chat_message &msg) = 0;
-};
-using chat_participant_ptr=shared_ptr<chat_participant>;
+class chat_session;
+using chat_session_ptr = std::shared_ptr<chat_session>;
+class chat_room
+{
+public:
+    void join(chat_session_ptr);
+    void leave(chat_session_ptr);
+    void deliver(const chat_message &msg);
 
-class chat_room{
-    public:
-    void join(chat_participant_ptr participant){
-        participants_.insert(participant);
-        for(const auto &msg:recent_msgs_)
-            participant->deliver(msg);
-    }
-    void leave(chat_participant_ptr participant){
-        participants_.erase(participant);
-    }
-    void deliver(const chat_message &msg){
-        recent_msgs_.push_back(msg);
-        while(recent_msgs_.size()>max_recent_msgs)
-            recent_msgs_.pop_front();
-        for(auto &participant:participants_)
-            participant->deliver(msg);
-    }
-    private:
-        set<chat_participant_ptr> participants_;
-        enum
-        {
-            max_recent_msgs = 100
-        };
-        chat_message_queue recent_msgs_;
+private:
+    set<chat_session_ptr> participants_;
+    enum
+    { 
+        max_recent_msgs = 100
+    };
+    chat_message_queue recent_msgs_;
 };
-class chat_session : public chat_participant, public std::enable_shared_from_this<chat_session>
+class chat_session : public std::enable_shared_from_this<chat_session>
 {
 
 public:
@@ -124,7 +108,7 @@ private:
                         write_msgs_.pop_front();
                         if(!write_msgs_.empty()){
                             do_write();
-                            printf("duqu\n")
+                            printf("duqu\n");
                         }
                     }else{
                         room_.leave(shared_from_this());
@@ -137,6 +121,24 @@ private:
         chat_message read_msg_;
         chat_message_queue write_msgs_;
 };
+
+void chat_room::join(chat_session_ptr participant)
+        {
+            participants_.insert(participant);
+            for (const auto &msg : recent_msgs_)
+                participant->deliver(msg);
+        }
+void chat_room::leave(chat_session_ptr participant){
+        participants_.erase(participant);
+    }
+void chat_room::deliver(const chat_message &msg){
+        recent_msgs_.push_back(msg);
+        while(recent_msgs_.size()>max_recent_msgs)
+            recent_msgs_.pop_front();
+        for(auto &participant:participants_)
+            participant->deliver(msg);
+    }
+
 
 class chat_server{
     public:
@@ -168,7 +170,7 @@ int main (int argc,char *argv[]){
         std::list<chat_server> servers;
         for (int i = 1; i < argc;++i){
             tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[i]));
-            servers.emplace_back(io_service, 0);
+            servers.emplace_back(io_service, endpoint);
         }
         io_service.run();
     }catch(std::exception &e){
