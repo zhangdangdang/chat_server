@@ -4,6 +4,9 @@
 #include <iostream>
 #include <thread>
 #include <cstdlib>
+#include <cassert>
+#include "structHeader.hpp"
+
 using boost::asio::ip::tcp;
 //typedef std::deque<chat_message> chat_message_queue;
 using chat_message_queue = std::deque<chat_message>;
@@ -64,7 +67,17 @@ private:
             socket_,boost::asio::buffer(read_msg_.body(),read_msg_.body_length()),
             [this](boost::system::error_code ec,std::size_t){
                 if(!ec){
-                    std::cout.write(read_msg_.body(), read_msg_.body_length());
+                    if(read_msg_.body_length()==sizeof(RoomInformation)&&read_msg_.type()==MT_ROOM_INFO){
+                        const RoomInformation *info = reinterpret_cast<const RoomInformation *> (read_msg_.body());
+                        std::cout << "client:";
+                        assert(info->name.nameLen <= sizeof(info->name.name));
+                        std::cout.write(info->name.name, info->name.nameLen);
+                        std::cout << "says";
+                        assert(info->chat.infoLen <= sizeof(info->chat.information));
+                        std::cout.write (info->chat.information,info->chat.infoLen);
+                        std::cout << "\n";
+                    }
+                    //std::cout.write(read_msg_.body(), read_msg_.body_length());
                     std::cout << "\n";
                     do_read_header();
                 }else{
@@ -92,7 +105,7 @@ private:
 int main(int argc,char*argv[]){
 try{
     if(argc!=3){
-        std::cerr << "port\n";
+        std::cerr << "port...\n";
         return 1;
     }
     boost::asio::io_service io_service;
@@ -104,10 +117,14 @@ try{
     char line[chat_message::max_body_length + 1];
     while (std::cin.getline(line,chat_message::max_body_length+1)){//ctrl+d正常退出
         chat_message msg;
-        msg.body_length(std::strlen(line));
-        std::memcpy(msg.body(), line, msg.body_length());
-        msg.encode_header();
-        c.write(msg);
+        auto type = 0;
+        std::string input(line, line + std::strlen(line));//转换成字符串，消息的头部和尾部，都是指针
+        std::string output;
+        if(parseMessage(input,&type,output)){
+            msg.setMessage(type, output.data(), output.size());
+            c.write(msg);
+            std::cout << "write message for server" << output.size() << std::endl;
+        }
     }
     c.close();
     t.join();

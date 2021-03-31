@@ -89,7 +89,8 @@ private:
                 socket_,boost::asio::buffer(read_msg_.body(),read_msg_.body_length()),
                 [this,self](boost::system::error_code ec,std::size_t){
                     if(!ec){
-                        room_.deliver(read_msg_);
+                        //room_.deliver(read_msg_);
+                        handleMessage();
                         do_read_header();
                     }else{
                         room_.leave(shared_from_this());
@@ -97,7 +98,21 @@ private:
                 }
             );
         }
-
+    void handleMessage(){
+        if(read_msg_.type()==MT_BIND_NAME){
+            const BindName *bind = reinterpret_cast<const BindName *>(read_msg_.body());
+            m_name.assign(bind->name, bind->name + bind->nameLen);
+        }else if(read_msg_.type()==MT_CHAT_INFO){
+            const ChatInformation *chat = reinterpret_cast<const ChatInformation *>(read_msg_.body());
+            m_chatInformation.assign(chat->information, chat->information + chat->infoLen);
+            auto rinfo = buildRoomInfo();
+            chat_message msg;
+            msg.setMessage(MT_ROOM_INFO, &rinfo, sizeof(rinfo));
+            room_.deliver(msg);
+        }else{
+                //not valid msg do nothing
+        }
+    }
     void do_write(){
             auto self(shared_from_this());
             boost::asio::async_write(
@@ -120,6 +135,16 @@ private:
         chat_room &room_;
         chat_message read_msg_;
         chat_message_queue write_msgs_;
+        std::string m_name;
+        std::string m_chatInformation;
+        RoomInformation buildRoomInfo()const{
+            RoomInformation info;
+            info.name.nameLen = m_name.size();
+            std::memcpy(info.name.name, m_name.data(), m_name.size());
+            info.chat.infoLen = m_chatInformation.size();
+            std::memcpy(info.chat.information, m_chatInformation.data(), m_chatInformation.size());
+            return info;
+        }
 };
 
 void chat_room::join(chat_session_ptr participant)
