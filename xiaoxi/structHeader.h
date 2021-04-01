@@ -1,6 +1,9 @@
-#ifndef FND
-#define FND
+#ifndef FND_H
+#define FND_H
 #include<string>
+
+
+//#define _GLIBCXX_USE_CXX11_ABI 0  #对我来说能用，但出现了很多redefine的警告
 struct Header
 {
     int bodySize;

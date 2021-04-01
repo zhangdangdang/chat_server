@@ -1,9 +1,12 @@
-#include "structHeader.hpp"
+
 #include<cstdlib>
 #include<cstring>
 #include<iostream>
+
+#include "structHeader.h"
+
 bool parseMessage(const std::string &input, int *type, std::string &outbuffer){
-    auto pos = input.find_first_of("");//找第一个 空格的位置
+    auto pos = input.find_first_of(" ");//找第一个 空格的位置
     if(pos==std::string::npos)
         return false;
     if(pos==0)

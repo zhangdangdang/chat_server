@@ -67,6 +67,7 @@ public:
 private:
     void do_read_header()
     {
+        std::cout << "read_header" << std::endl;
         auto self(shared_from_this());
         boost::asio::async_read(
             socket_, boost::asio::buffer(read_msg_.data(), chat_message::header_length),
@@ -84,6 +85,7 @@ private:
 
     void do_read_body()
     {
+        std::cout << "read_body" << std::endl;
         auto self(shared_from_this());
             boost::asio::async_read(
                 socket_,boost::asio::buffer(read_msg_.body(),read_msg_.body_length()),
@@ -177,6 +179,7 @@ class chat_server{
             if(!ec)
             {
                 std::make_shared<chat_session>(std::move(socket_), room_)->start();
+                std::cout << "accept" << std::endl;
             }
             do_accept();
         });

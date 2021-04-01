@@ -1,9 +1,10 @@
-#ifdef chat_
-#define chat_
-#endif
-#include "structHeader.hpp"
+#ifndef chat_MESSAGE
+#define chat_MESSAGE
+
+#include "structHeader.h"
 #include <cstdlib>
 #include <cstdio>
+#include <string>
 #include <cstring>
 #include <iostream>
 #include <cassert>
@@ -31,14 +32,14 @@ class chat_message{
             assert(bufferSize <= max_body_length);
             m_header.bodySize = bufferSize;
             m_header.type=messageType;
-            std::memcpy(body(), buffer, bufferSize);
-            std::memcpy(data(), &m_header, sizeof(m_header));
+            memcpy(body(), buffer, bufferSize);
+            memcpy(data(), &m_header, sizeof(m_header));
         }
         bool decode_header(){
             //char header[header_length + 1] = "";
             //std::strncat(header, data_, header_length);//把length长度的字符加到head的上
             //body_length_ = std::atoi(header);//跳过前边的空白字符
-            std::memcpy(&m_header, data(), header_length);
+            memcpy(&m_header, data(), header_length);
             if (m_header.bodySize > max_body_length)
             {
                 std::cout << "body size" << m_header.bodySize << "" << m_header.type << std::endl;
@@ -51,3 +52,4 @@ class chat_message{
         char data_[header_length + max_body_length];
         Header m_header;
 };
+#endif

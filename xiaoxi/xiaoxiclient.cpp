@@ -1,13 +1,13 @@
 #include "chat_message.hpp"
+//#include "structHeader.h"
 #include <boost/asio.hpp>
 #include <deque>
 #include <iostream>
 #include <thread>
 #include <cstdlib>
 #include <cassert>
-#include <string>
-#include "structHeader.hpp"
 
+#define _GLIBCXX_USE_CXX11_ABI 1
 using boost::asio::ip::tcp;
 //typedef std::deque<chat_message> chat_message_queue;
 using chat_message_queue = std::deque<chat_message>;
@@ -70,10 +70,10 @@ private:
                 if(!ec){
                     if(read_msg_.body_length()==sizeof(RoomInformation)&&read_msg_.type()==MT_ROOM_INFO){
                         const RoomInformation *info = reinterpret_cast<const RoomInformation *> (read_msg_.body());
-                        std::cout << "client:";
+                        std::cout << "client: ";
                         assert(info->name.nameLen <= sizeof(info->name.name));
                         std::cout.write(info->name.name, info->name.nameLen);
-                        std::cout << "says";
+                        std::cout << " says ";
                         assert(info->chat.infoLen <= sizeof(info->chat.information));
                         std::cout.write (info->chat.information,info->chat.infoLen);
                         std::cout << "\n";
