@@ -79,6 +79,7 @@
         "variant": "cpp",
         "*.ipp": "cpp",
         "strstream": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "cassert": "cpp"
     }
 }
