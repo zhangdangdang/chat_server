@@ -5,6 +5,7 @@
 #include <thread>
 #include <cstdlib>
 #include <cassert>
+#include <string>
 #include "structHeader.hpp"
 
 using boost::asio::ip::tcp;

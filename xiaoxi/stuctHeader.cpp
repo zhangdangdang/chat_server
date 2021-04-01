@@ -18,8 +18,8 @@ bool parseMessage(const std::string &input, int *type, std::string &outbuffer){
         BindName bindInfo;
         bindInfo.nameLen = name.size();
         std::memcpy(&(bindInfo.name), name.data(), name.size());
-        auto buffer = reinterpret_cast<const char *>(&bindInfo);//setMessage传入的是const 指针强制转换到
-        outbuffer.assign(buffer, buffer + sizeof(bindInfo));//赋值
+        auto buffer = reinterpret_cast<const char *>(&bindInfo);//setMessage传入的是const 指针强制转换到 char指向的位置
+        outbuffer.assign(buffer, buffer + sizeof(bindInfo));//赋值头部和尾部迭代器
         return true;
     }else if(command=="chat"){
         std::string chat = input.substr(pos + 1);
