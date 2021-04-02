@@ -6,7 +6,6 @@
 #include <thread>
 #include <cstdlib>
 #include <cassert>
-
 #define _GLIBCXX_USE_CXX11_ABI 1
 using boost::asio::ip::tcp;
 //typedef std::deque<chat_message> chat_message_queue;

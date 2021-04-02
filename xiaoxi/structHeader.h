@@ -15,7 +15,6 @@ enum MessageType
     MT_CHAT_INFO = 2,
     MT_ROOM_INFO = 3
 };
-
 //client send
 struct BindName
 {

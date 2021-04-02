@@ -1,7 +1,5 @@
 #ifndef chat_MESSAGE
 #define chat_MESSAGE
-
-
 #include "structHeader.h"
 #include <cstdlib>
 #include <cstdio>

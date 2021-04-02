@@ -166,8 +166,6 @@ void chat_room::deliver(const chat_message &msg){
             participant->deliver(msg);
     }
 
-
-
 class chat_server{
     public:
         chat_server(boost::asio::io_service &io_service,const tcp::endpoint &endpoint):
