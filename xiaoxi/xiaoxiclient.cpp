@@ -87,6 +87,7 @@ private:
             }
         );
     }
+    
     void do_write(){
         boost::asio::async_write(
             socket_,boost::asio::buffer(write_msgs_.front().data(),write_msgs_.front().length()),
