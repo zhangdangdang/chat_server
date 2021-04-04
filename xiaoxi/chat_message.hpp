@@ -34,6 +34,10 @@ class chat_message{
             memcpy(body(), buffer, bufferSize);
             memcpy(data(), &m_header, sizeof(m_header));
         }
+        void setMessage(int messageType,const std::string& buffer){
+            setMessage(messageType, buffer.data(), buffer.size());
+        }
+
         bool decode_header(){
             //char header[header_length + 1] = "";
             //std::strncat(header, data_, header_length);//把length长度的字符加到head的上

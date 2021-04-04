@@ -1,4 +1,5 @@
 #include "chat_message.hpp"
+#include "SerilizationObject.h"
 //#include "structHeader.h"
 #include <boost/asio.hpp>
 #include <deque>
@@ -32,6 +33,7 @@ public:
                 write_msgs_.push_back(msg);
                 if(!write_in_progress){
                     do_write();
+                    std::cout << "write "<<std::endl;
                 }
             });
     }
@@ -67,14 +69,15 @@ private:
             socket_,boost::asio::buffer(read_msg_.body(),read_msg_.body_length()),
             [this](boost::system::error_code ec,std::size_t){
                 if(!ec){
-                    if(read_msg_.body_length()==sizeof(RoomInformation)&&read_msg_.type()==MT_ROOM_INFO){
-                        const RoomInformation *info = reinterpret_cast<const RoomInformation *> (read_msg_.body());
+                    if(read_msg_.type()==MT_ROOM_INFO){
+                        SRoomInfo info;
+                        std::stringstream ss(std::string(read_msg_.body(),read_msg_.body()+read_msg_.body_length()));
+                        boost::archive::text_iarchive oa(ss);
+                        oa &info;
                         std::cout << "client: ";
-                        assert(info->name.nameLen <= sizeof(info->name.name));
-                        std::cout.write(info->name.name, info->name.nameLen);
+                        std::cout << info.name() ;
                         std::cout << " says ";
-                        assert(info->chat.infoLen <= sizeof(info->chat.information));
-                        std::cout.write (info->chat.information,info->chat.infoLen);
+                        std::cout << info.information();
                         std::cout << "\n";
                     }
                     //std::cout.write(read_msg_.body(), read_msg_.body_length());
@@ -88,13 +91,16 @@ private:
     }
     
     void do_write(){
+        std::cout << "realwrite "<<std::endl;
         boost::asio::async_write(
             socket_,boost::asio::buffer(write_msgs_.front().data(),write_msgs_.front().length()),
             [this](boost::system::error_code ec,std::size_t){
                 if(!ec){
                     write_msgs_.pop_front();
                     if(!write_msgs_.empty()){
+                        
                         do_write();
+                        
                     }
                 }else{
                     socket_.close();
@@ -121,7 +127,7 @@ try{
         auto type = 0;
         std::string input(line, line + std::strlen(line));//转换成字符串，消息的头部和尾部，都是指针
         std::string output;
-        if(parseMessage(input,&type,output)){
+        if(parseMessage2(input,&type,output)){
             msg.setMessage(type, output.data(), output.size());
             c.write(msg);
             std::cout << "write message for server" << output.size() << std::endl;

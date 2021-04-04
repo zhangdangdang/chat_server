@@ -1,4 +1,5 @@
 #include "chat_message.hpp"
+#include "SerilizationObject.h"
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
@@ -100,19 +101,43 @@ private:
                 }
             );
         }
+    template<typename T>
+        T toObject(){
+        T obj;
+        std::stringstream ss(std::string(read_msg_.body(), read_msg_.body()+read_msg_.body_length()));
+            boost::archive::text_iarchive oa(ss);
+            oa &obj;
+            return obj;
+    }
+
     void handleMessage(){
         if(read_msg_.type()==MT_BIND_NAME){
-            const BindName *bind = reinterpret_cast<const BindName *>(read_msg_.body());
-            m_name.assign(bind->name, bind->name + bind->nameLen);
-        }else if(read_msg_.type()==MT_CHAT_INFO){
-            const ChatInformation *chat = reinterpret_cast<const ChatInformation *>(read_msg_.body());
-            m_chatInformation.assign(chat->information, chat->information + chat->infoLen);
+            //SBindName bindName;
+            //std::stringstream ss(read_msg_.body());//都可以低下那个写法更安全
+            //std::stringstream ss(std::string(read_msg_.body(), read_msg_.body()+read_msg_.body_length()));
+            //boost::archive::text_iarchive oa(ss);
+            //oa &bindName;
+            auto bindName = toObject<SBindName>();
+            m_name = bindName.bindName();
+        }
+        else if (read_msg_.type() == MT_CHAT_INFO)
+        {
+            //SChatInfo chat;
+            //std::stringstream ss(std::string(read_msg_.body(), read_msg_.body_length()));
+            //boost::archive::text_iarchive oa(ss);
+            //oa &chat;
+            std::cout << "handleMessage" << std::endl;
+            auto chat = toObject<SChatInfo>();
+            m_chatInformation = chat.chatInformation();//issue
             auto rinfo = buildRoomInfo();
             chat_message msg;
-            msg.setMessage(MT_ROOM_INFO, &rinfo, sizeof(rinfo));
+            //msg.setMessage(MT_ROOM_INFO, &rinfo, sizeof(rinfo));
+            msg.setMessage(MT_ROOM_INFO, rinfo);
             room_.deliver(msg);
-        }else{
-                //not valid msg do nothing
+        }
+        else
+        {
+            //not valid msg do nothing
         }
     }
     void do_write(){
@@ -139,14 +164,21 @@ private:
         chat_message_queue write_msgs_;
         std::string m_name;
         std::string m_chatInformation;
-        RoomInformation buildRoomInfo()const{
-            RoomInformation info;
-            info.name.nameLen = m_name.size();
-            std::memcpy(info.name.name, m_name.data(), m_name.size());
-            info.chat.infoLen = m_chatInformation.size();
-            std::memcpy(info.chat.information, m_chatInformation.data(), m_chatInformation.size());
-            return info;
+        std::string buildRoomInfo() const{
+            SRoomInfo roomInfo(m_name, m_chatInformation);
+            std::stringstream ss;
+            boost::archive::text_oarchive oa(ss);
+            oa &roomInfo;
+            return ss.str();
         }
+        //RoomInformation buildRoomInfo()const{
+        //   RoomInformation info;
+        //    info.name.nameLen = m_name.size();
+        //    std::memcpy(info.name.name, m_name.data(), m_name.size());
+        //    info.chat.infoLen = m_chatInformation.size();
+        //    std::memcpy(info.chat.information, m_chatInformation.data(), m_chatInformation.size());
+        //    return info;
+        //}
 };
 
 void chat_room::join(chat_session_ptr participant)
