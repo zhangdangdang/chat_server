@@ -74,7 +74,9 @@ private:
                 if(!ec){
                     if(read_msg_.type()==MT_ROOM_INFO){
                         SRoomInfo info;
-                        std::stringstream ss(std::string(read_msg_.body(),read_msg_.body()+read_msg_.body_length()));
+                        std::string buffer(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
+                        std::cout << "raw" << buffer << std::endl;//查看未处理的流，实际就是json格式
+                        std::stringstream ss(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
                         ptree tree;
                         boost::property_tree::read_json(ss, tree);
                         std::cout << "client: ";
