@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <cassert>
+#include "JsonObject.h"
 
 class chat_message{
     public:

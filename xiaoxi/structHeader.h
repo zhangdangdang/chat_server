@@ -1,7 +1,7 @@
 #ifndef FND_H
 #define FND_H
 #include<string>
-
+#include "JsonObject.h"
 
 //#define _GLIBCXX_USE_CXX11_ABI 0  #对我来说能用，但出现了很多redefine的警告
 struct Header
@@ -11,9 +11,9 @@ struct Header
 };
 enum MessageType
 {
-    MT_BIND_NAME = 1,
-    MT_CHAT_INFO = 2,
-    MT_ROOM_INFO = 3
+    MT_BIND_NAME = 1,//{"name":"adc"}客户端发给服务器
+    MT_CHAT_INFO = 2,//{"information":"what i say"}客户端发给服务器
+    MT_ROOM_INFO = 3 //{"name":"abc","informattion":"what i say"}服务器发给客户端
 };
 //client send
 struct BindName
@@ -38,4 +38,5 @@ struct RoomInformation
 };
 bool parseMessage(const std::string &input, int *type, std::string &outbuffer);
 bool parseMessage2(const std::string &input, int *type, std::string &outbuffer);
+bool parseMessage3(const std::string &input, int *type, std::string &outbuffer);
 #endif

@@ -1,9 +1,9 @@
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS 
 #include "chat_message.hpp"
 #include "SerilizationObject.h"
 #include <iostream>
-#include <ctime>
 #include <cstdlib>
-#include <utility>
+//#include <utility>
 #include <string>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
@@ -12,7 +12,9 @@
 #include <deque>
 #include <list>
 #include <set>
-#include <utility>
+#include "JsonObject.h"
+//#include <boost/bind/bind.hpp>
+//using namespace boost::placeholders;
 
 //保证兼容性
 #if BOOST_VERSION >= 107000
@@ -109,7 +111,13 @@ private:
             oa &obj;
             return obj;
     }
-
+    /*把收到的流转化为json*/
+    ptree toPtree(){
+        ptree obj;
+        std::stringstream ss(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
+        boost::property_tree::read_json(ss, obj);
+        return obj;
+    }
     void handleMessage(){
         if(read_msg_.type()==MT_BIND_NAME){
             //SBindName bindName;
@@ -117,8 +125,9 @@ private:
             //std::stringstream ss(std::string(read_msg_.body(), read_msg_.body()+read_msg_.body_length()));
             //boost::archive::text_iarchive oa(ss);
             //oa &bindName;
-            auto bindName = toObject<SBindName>();
-            m_name = bindName.bindName();
+            //auto bindName = toObject<SBindName>();
+            auto nameTree = toPtree();
+            m_name = nameTree.get<std::string>("name");
         }
         else if (read_msg_.type() == MT_CHAT_INFO)
         {
@@ -127,8 +136,8 @@ private:
             //boost::archive::text_iarchive oa(ss);
             //oa &chat;
             std::cout << "handleMessage" << std::endl;
-            auto chat = toObject<SChatInfo>();
-            m_chatInformation = chat.chatInformation();//issue
+            auto chat = toPtree();
+            m_chatInformation = chat.get<std::string>("information");
             auto rinfo = buildRoomInfo();
             chat_message msg;
             //msg.setMessage(MT_ROOM_INFO, &rinfo, sizeof(rinfo));
@@ -165,11 +174,15 @@ private:
         std::string m_name;
         std::string m_chatInformation;
         std::string buildRoomInfo() const{
-            SRoomInfo roomInfo(m_name, m_chatInformation);
-            std::stringstream ss;
-            boost::archive::text_oarchive oa(ss);
-            oa &roomInfo;
-            return ss.str();
+            ptree tree;
+            tree.put("name", m_name);
+            tree.put("information", m_chatInformation);
+            return ptreeToJsonString(tree);
+            //SRoomInfo roomInfo(m_name, m_chatInformation);
+            //std::stringstream ss;
+            //boost::archive::text_oarchive oa(ss);
+            //oa &roomInfo;
+            //return ss.str();
         }
         //RoomInformation buildRoomInfo()const{
         //   RoomInformation info;

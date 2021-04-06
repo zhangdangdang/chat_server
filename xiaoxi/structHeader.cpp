@@ -4,6 +4,8 @@
 #include<iostream>
 #include "structHeader.h"
 #include "SerilizationObject.h"
+#include "JsonObject.h"
+
 template <typename T> 
 std::string seriliaze(const T &obj){
     std::stringstream ss;
@@ -66,6 +68,39 @@ auto pos = input.find_first_of(" ");//找第一个 空格的位置
         if(chat.size()>256)
             return false;
         outbuffer = seriliaze(SChatInfo(std::move(chat)));
+        if(type)
+            *type = MT_CHAT_INFO;
+        return true;
+    }
+    return false;
+
+}
+bool parseMessage3(const std::string &input, int *type, std::string &outbuffer){
+auto pos = input.find_first_of(" ");//找第一个 空格的位置
+    if(pos==std::string::npos)
+        return false;
+    if(pos==0)
+        return false;
+    auto command = input.substr(0, pos);//返回一个从指定位置开始的指定长度的子字符串。
+    if(command=="bindname"){
+        std::string name = input.substr(pos + 1);
+        if(name.size()>32)
+            return false;
+        if(type)
+            *type = MT_BIND_NAME;
+        //outbuffer = seriliaze(SBindName(std::move(name)));
+        ptree tree;
+        tree.put("name", name);
+        outbuffer = ptreeToJsonString(tree);
+        return true;
+    }else if(command=="chat"){
+        std::string chat = input.substr(pos + 1);
+        if(chat.size()>256)
+            return false;
+        //outbuffer = seriliaze(SChatInfo(std::move(chat)));
+        ptree tree;
+        tree.put("information", chat);
+        outbuffer = ptreeToJsonString(tree);
         if(type)
             *type = MT_CHAT_INFO;
         return true;

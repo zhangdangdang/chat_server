@@ -1,5 +1,7 @@
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS 
 #include "chat_message.hpp"
 #include "SerilizationObject.h"
+#include "JsonObject.h"
 //#include "structHeader.h"
 #include <boost/asio.hpp>
 #include <deque>
@@ -7,6 +9,7 @@
 #include <thread>
 #include <cstdlib>
 #include <cassert>
+
 #define _GLIBCXX_USE_CXX11_ABI 1
 using boost::asio::ip::tcp;
 //typedef std::deque<chat_message> chat_message_queue;
@@ -72,16 +75,16 @@ private:
                     if(read_msg_.type()==MT_ROOM_INFO){
                         SRoomInfo info;
                         std::stringstream ss(std::string(read_msg_.body(),read_msg_.body()+read_msg_.body_length()));
-                        boost::archive::text_iarchive oa(ss);
-                        oa &info;
+                        ptree tree;
+                        boost::property_tree::read_json(ss, tree);
                         std::cout << "client: ";
-                        std::cout << info.name() ;
+                        std::cout << tree.get<std::string>("name");//get是模板函数 传入类型
                         std::cout << " says ";
-                        std::cout << info.information();
+                        std::cout << tree.get<std::string>("information");
                         std::cout << "\n";
                     }
                     //std::cout.write(read_msg_.body(), read_msg_.body_length());
-                    std::cout << "\n";
+                    //std::cout << "\n";
                     do_read_header();
                 }else{
                     socket_.close();
@@ -127,7 +130,7 @@ try{
         auto type = 0;
         std::string input(line, line + std::strlen(line));//转换成字符串，消息的头部和尾部，都是指针
         std::string output;
-        if(parseMessage2(input,&type,output)){
+        if(parseMessage3(input,&type,output)){
             msg.setMessage(type, output.data(), output.size());
             c.write(msg);
             std::cout << "write message for server" << output.size() << std::endl;
