@@ -2,7 +2,7 @@
 #define FND_H
 #include<string>
 #include "JsonObject.h"
-
+#include "Protocal.pb.h"
 //#define _GLIBCXX_USE_CXX11_ABI 0  #对我来说能用，但出现了很多redefine的警告
 struct Header
 {
@@ -39,4 +39,5 @@ struct RoomInformation
 bool parseMessage(const std::string &input, int *type, std::string &outbuffer);
 bool parseMessage2(const std::string &input, int *type, std::string &outbuffer);
 bool parseMessage3(const std::string &input, int *type, std::string &outbuffer);
+bool parseMessage4(const std::string &input, int *type, std::string &outbuffer);
 #endif

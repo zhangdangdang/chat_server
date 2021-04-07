@@ -80,6 +80,8 @@
         "*.ipp": "cpp",
         "strstream": "cpp",
         "cfenv": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "*.inc": "cpp",
+        "unordered_set": "cpp"
     }
 }

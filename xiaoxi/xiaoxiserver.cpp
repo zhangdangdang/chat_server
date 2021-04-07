@@ -1,6 +1,7 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS 
 #include "chat_message.hpp"
 #include "SerilizationObject.h"
+#include "Protocal.pb.h"
 #include <iostream>
 #include <cstdlib>
 //#include <utility>
@@ -111,38 +112,36 @@ private:
             oa &obj;
             return obj;
     }
-    /*把收到的流转化为json*/
-    ptree toPtree(){
-        ptree obj;
-        std::stringstream ss(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
-        boost::property_tree::read_json(ss, obj);
-        return obj;
+    bool fillProtobuf(::google::protobuf::Message* msg)
+    {   
+        std::string ss(read_msg_.body(), read_msg_.body() + read_msg_.body_length());
+        auto ok = msg->ParseFromString(ss);
+        return ok;
     }
     void handleMessage(){
         if(read_msg_.type()==MT_BIND_NAME){
-            //SBindName bindName;
-            //std::stringstream ss(read_msg_.body());//都可以低下那个写法更安全
-            //std::stringstream ss(std::string(read_msg_.body(), read_msg_.body()+read_msg_.body_length()));
-            //boost::archive::text_iarchive oa(ss);
-            //oa &bindName;
-            //auto bindName = toObject<SBindName>();
-            auto nameTree = toPtree();
-            m_name = nameTree.get<std::string>("name");
+            PBindName bindName;
+            //std::string buffer(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
+            if(fillProtobuf(&bindName))
+            m_name = bindName.name();
+            std::cout << m_name << std::endl;
         }
         else if (read_msg_.type() == MT_CHAT_INFO)
         {
-            //SChatInfo chat;
-            //std::stringstream ss(std::string(read_msg_.body(), read_msg_.body_length()));
-            //boost::archive::text_iarchive oa(ss);
-            //oa &chat;
+            
             std::cout << "handleMessage" << std::endl;
-            auto chat = toPtree();
-            m_chatInformation = chat.get<std::string>("information");
+            PChat chat;
+            if(!fillProtobuf(&chat))//可以做一些日志 调试方便
+                return;
+            m_chatInformation = chat.information();
+            std::cout << m_chatInformation << std::endl;
             auto rinfo = buildRoomInfo();
             chat_message msg;
             //msg.setMessage(MT_ROOM_INFO, &rinfo, sizeof(rinfo));
             msg.setMessage(MT_ROOM_INFO, rinfo);
+
             room_.deliver(msg);
+            std::cout << "hand deliver" << std::endl;
         }
         else
         {
@@ -174,41 +173,31 @@ private:
         std::string m_name;
         std::string m_chatInformation;
         std::string buildRoomInfo() const{
-            ptree tree;
-            tree.put("name", m_name);
-            tree.put("information", m_chatInformation);
-            return ptreeToJsonString(tree);
-            //SRoomInfo roomInfo(m_name, m_chatInformation);
-            //std::stringstream ss;
-            //boost::archive::text_oarchive oa(ss);
-            //oa &roomInfo;
-            //return ss.str();
+            PRoomInformation roomInfo;
+            roomInfo.set_name(m_name);
+            roomInfo.set_infomation(m_chatInformation);
+            std::string out;
+            auto ok = roomInfo.SerializeToString(&out);
+            assert(ok);
+            return out;
         }
-        //RoomInformation buildRoomInfo()const{
-        //   RoomInformation info;
-        //    info.name.nameLen = m_name.size();
-        //    std::memcpy(info.name.name, m_name.data(), m_name.size());
-        //    info.chat.infoLen = m_chatInformation.size();
-        //    std::memcpy(info.chat.information, m_chatInformation.data(), m_chatInformation.size());
-        //    return info;
-        //}
 };
-
 void chat_room::join(chat_session_ptr participant)
-        {
-            participants_.insert(participant);
-            for (const auto &msg : recent_msgs_)
-                participant->deliver(msg);
+{
+    participants_.insert(participant);
+    for (const auto &msg : recent_msgs_)
+        participant->deliver(msg);
         }
 void chat_room::leave(chat_session_ptr participant){
         participants_.erase(participant);
     }
 void chat_room::deliver(const chat_message &msg){
-        recent_msgs_.push_back(msg);
-        while(recent_msgs_.size()>max_recent_msgs)
-            recent_msgs_.pop_front();
-        for(auto &participant:participants_)
-            participant->deliver(msg);
+    std::cerr << "room_deliver\n";
+    recent_msgs_.push_back(msg);
+    while (recent_msgs_.size() > max_recent_msgs)
+        recent_msgs_.pop_front();
+    for (auto &participant : participants_)
+        participant->deliver(msg);
     }
 
 class chat_server{
@@ -234,6 +223,7 @@ class chat_server{
 };
 int main (int argc,char *argv[]){
     try{
+        GOOGLE_PROTOBUF_VERIFY_VERSION;//检查版本
         if(argc<2){
             std::cerr << "port\n";
             return 1;
@@ -248,5 +238,6 @@ int main (int argc,char *argv[]){
     }catch(std::exception &e){
         std::cerr << "exception:" << e.what() << "\n";
     }
+    google::protobuf::ShutdownProtobufLibrary();//主动释放proto申请的内存 内存会自动释放，但是可能会被查内存泄漏
     return 0;
 }

@@ -2,6 +2,7 @@
 #include "chat_message.hpp"
 #include "SerilizationObject.h"
 #include "JsonObject.h"
+#include "Protocal.pb.h"
 //#include "structHeader.h"
 #include <boost/asio.hpp>
 #include <deque>
@@ -73,17 +74,20 @@ private:
             [this](boost::system::error_code ec,std::size_t){
                 if(!ec){
                     if(read_msg_.type()==MT_ROOM_INFO){
-                        SRoomInfo info;
-                        std::string buffer(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
-                        std::cout << "raw" << buffer << std::endl;//查看未处理的流，实际就是json格式
-                        std::stringstream ss(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
-                        ptree tree;
-                        boost::property_tree::read_json(ss, tree);
-                        std::cout << "client: ";
-                        std::cout << tree.get<std::string>("name");//get是模板函数 传入类型
-                        std::cout << " says ";
-                        std::cout << tree.get<std::string>("information");
-                        std::cout << "\n";
+                        //SRoomInfo info;
+                        std::string buffer(read_msg_.body(), read_msg_.body() + read_msg_.body_length());
+                        PRoomInformation roomInfo;
+                        auto ok = roomInfo.ParseFromString(buffer);
+                        //if(!ok)
+                        //    throw std::runtime_error("not vaild message");
+                        if (ok)
+                        {
+                            std::cout << "client: ";
+                            std::cout << roomInfo.name();
+                            std::cout << " says ";
+                            std::cout << roomInfo.infomation();
+                            std::cout << "\n";
+                        }
                     }
                     //std::cout.write(read_msg_.body(), read_msg_.body_length());
                     //std::cout << "\n";
@@ -116,7 +120,9 @@ private:
 };
 int main(int argc,char*argv[]){
 try{
-    if(argc!=3){
+    GOOGLE_PROTOBUF_VERIFY_VERSION;//检查版本
+    if (argc != 3)
+    {
         std::cerr << "port...\n";
         return 1;
     }
@@ -132,7 +138,7 @@ try{
         auto type = 0;
         std::string input(line, line + std::strlen(line));//转换成字符串，消息的头部和尾部，都是指针
         std::string output;
-        if(parseMessage3(input,&type,output)){
+        if(parseMessage4(input,&type,output)){
             msg.setMessage(type, output.data(), output.size());
             c.write(msg);
             std::cout << "write message for server" << output.size() << std::endl;
@@ -143,6 +149,7 @@ try{
 }catch (std::exception &e){
     std::cerr << "exception:" << e.what() << "\n";
 }
+google::protobuf::ShutdownProtobufLibrary();//主动释放proto申请的内存
 return 0;
 }
 
