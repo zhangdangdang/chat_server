@@ -46,13 +46,14 @@ public:
     }
 private:
     void do_connect(tcp::resolver::iterator endpoint_iterator){
+        std::cout << "connect" << std::endl;
         boost::asio::async_connect(
-            socket_,endpoint_iterator,[this](boost::system::error_code ec,tcp::resolver::iterator){
-                if(!ec){
+            socket_, endpoint_iterator, [this](boost::system::error_code ec, tcp::resolver::iterator) {
+                if(!ec)
+                {
                     do_read_header();
                 }
-            }
-        );
+            });
     }
     void do_read_header(){
         boost::asio::async_read(
@@ -138,6 +139,7 @@ try{
         auto type = 0;
         std::string input(line, line + std::strlen(line));//转换成字符串，消息的头部和尾部，都是指针
         std::string output;
+        
         if(parseMessage4(input,&type,output)){
             msg.setMessage(type, output.data(), output.size());
             c.write(msg);

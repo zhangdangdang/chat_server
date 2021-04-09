@@ -14,6 +14,8 @@
 #include <list>
 #include <set>
 #include "JsonObject.h"
+#include <chrono>
+#include <mutex>
 //#include <boost/bind/bind.hpp>
 //using namespace boost::placeholders;
 
@@ -27,6 +29,8 @@
 //boost::asio::io_service& get_io_service(){
  //           return GET_IO_SERVICE(acceptor_);
  //       }
+ //stread_clock
+std::chrono::system_clock::time_point base;//基础时间钟表时间
 using boost::asio::ip::tcp;
 using namespace std;
 using chat_message_queue = std::deque<chat_message>;
@@ -46,6 +50,7 @@ private:
         max_recent_msgs = 100
     };
     chat_message_queue recent_msgs_;
+    std::mutex m_mutex;
 };
 class chat_session : public std::enable_shared_from_this<chat_session>
 {
@@ -60,8 +65,10 @@ public:
     }
     void deliver(const chat_message &msg)//96详解12 23：34
     {
+        
         bool write_in_progress = !write_msgs_.empty();
-        write_msgs_.push_back(msg);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        write_msgs_.push_back(msg);//deque线程不安全
         if (!write_in_progress)
         {
             do_write();
@@ -119,7 +126,12 @@ private:
         return ok;
     }
     void handleMessage(){
-        if(read_msg_.type()==MT_BIND_NAME){
+        auto n = std::chrono::system_clock::now() - base;
+        std::cout << "time  " << std::chrono::duration_cast<std::chrono::milliseconds>(n).count() << std::endl;
+        std::cout << "im in " << std::this_thread::get_id() << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));//延时一毫秒
+        if (read_msg_.type() == MT_BIND_NAME)
+        {
             PBindName bindName;
             //std::string buffer(std::string(read_msg_.body(), read_msg_.body() + read_msg_.body_length()));
             if(fillProtobuf(&bindName))
@@ -184,14 +196,18 @@ private:
 };
 void chat_room::join(chat_session_ptr participant)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     participants_.insert(participant);
     for (const auto &msg : recent_msgs_)
         participant->deliver(msg);
         }
 void chat_room::leave(chat_session_ptr participant){
-        participants_.erase(participant);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::cout << "leave" << std::endl;
+    participants_.erase(participant);
     }
 void chat_room::deliver(const chat_message &msg){
+    std::lock_guard<std::mutex> lock(m_mutex);
     std::cerr << "room_deliver\n";
     recent_msgs_.push_back(msg);
     while (recent_msgs_.size() > max_recent_msgs)
@@ -224,18 +240,32 @@ class chat_server{
 int main (int argc,char *argv[]){
     try{
         GOOGLE_PROTOBUF_VERIFY_VERSION;//检查版本
-        if(argc<2){
+        std::cout << argc << std::endl;
+        if (argc < 2)
+        {
             std::cerr << "port\n";
             return 1;
         }
+        base = std::chrono::system_clock::now();
         boost::asio::io_service io_service;
         std::list<chat_server> servers;
         for (int i = 1; i < argc;++i){
             tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[i]));
             servers.emplace_back(io_service, endpoint);
         }
+        std::vector<std::thread> threadGroup;
+        for (int i = 0; i < 5;++i){
+            threadGroup.emplace_back([&io_service, i] { 
+                std::cout<<i<<"name is"<<std::this_thread::get_id()<<std::endl;
+                io_service.run(); });
+        }
+        std::cout<<"main is"<<std::this_thread::get_id()<<std::endl;
         io_service.run();
-    }catch(std::exception &e){
+        for(auto&v:threadGroup)
+            v.join();
+    }
+    catch (std::exception &e)
+    {
         std::cerr << "exception:" << e.what() << "\n";
     }
     google::protobuf::ShutdownProtobufLibrary();//主动释放proto申请的内存 内存会自动释放，但是可能会被查内存泄漏
