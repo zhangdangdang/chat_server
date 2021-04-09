@@ -39,6 +39,7 @@ using chat_session_ptr = std::shared_ptr<chat_session>;
 class chat_room
 {
 public:
+    chat_room(boost::asio::io_service& io_service):m_strand(io_service){}
     void join(chat_session_ptr);
     void leave(chat_session_ptr);
     void deliver(const chat_message &msg);
@@ -50,13 +51,14 @@ private:
         max_recent_msgs = 100
     };
     chat_message_queue recent_msgs_;
-    std::mutex m_mutex;
+    boost::asio::io_service::strand m_strand;//使用asio函数来保护变量
+    //std::mutex m_mutex;
 };
 class chat_session : public std::enable_shared_from_this<chat_session>
 {
 
 public:
-    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room) {}
+    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(socket_.get_io_service()) {}
 
     void start()
     {
@@ -65,23 +67,26 @@ public:
     }
     void deliver(const chat_message &msg)//96详解12 23：34
     {
-        
-        bool write_in_progress = !write_msgs_.empty();
-        std::lock_guard<std::mutex> lock(m_mutex);
-        write_msgs_.push_back(msg);//deque线程不安全
-        if (!write_in_progress)
-        {
-            do_write();
-        }
+        m_strand.post([this, msg] {
+            bool write_in_progress = !write_msgs_.empty();
+            //std::lock_guard<std::mutex> lock(m_mutex);
+            write_msgs_.push_back(msg); //deque线程不安全
+            if (!write_in_progress)
+            {
+                do_write();
+            }
+        });
     }
 
 private:
+    boost::asio::io_service::strand  m_strand;
     void do_read_header()
     {
         std::cout << "read_header" << std::endl;
         auto self(shared_from_this());
         boost::asio::async_read(
             socket_, boost::asio::buffer(read_msg_.data(), chat_message::header_length),
+            m_strand.wrap(
             [this, self](boost::system::error_code ec, std::size_t) {
                 if (!ec && read_msg_.decode_header())
                 {
@@ -91,7 +96,7 @@ private:
                 {
                     room_.leave(shared_from_this());
                 }
-            });
+            }));
     }
 
     void do_read_body()
@@ -100,6 +105,7 @@ private:
         auto self(shared_from_this());
             boost::asio::async_read(
                 socket_,boost::asio::buffer(read_msg_.body(),read_msg_.body_length()),
+                m_strand.wrap(
                 [this,self](boost::system::error_code ec,std::size_t){
                     if(!ec){
                         //room_.deliver(read_msg_);
@@ -109,7 +115,7 @@ private:
                         room_.leave(shared_from_this());
                     }
                 }
-            );
+            ));
         }
     template<typename T>
         T toObject(){
@@ -165,6 +171,7 @@ private:
             boost::asio::async_write(
                 socket_,boost::asio::buffer(write_msgs_.front().data(),
                                             write_msgs_.front().length()),
+                m_strand.warp(
                 [this,self](boost::system::error_code ec,std::size_t){
                     if(!ec){
                         write_msgs_.pop_front();
@@ -176,7 +183,7 @@ private:
                         room_.leave(shared_from_this());
                     }
                 }
-            );
+            ));
         }
         tcp::socket socket_;
         chat_room &room_;
@@ -196,30 +203,37 @@ private:
 };
 void chat_room::join(chat_session_ptr participant)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    participants_.insert(participant);
-    for (const auto &msg : recent_msgs_)
-        participant->deliver(msg);
-        }
+    //std::lock_guard<std::mutex> lock(m_mutex);
+    m_strand.post([this, participant] {
+        participants_.insert(participant);
+        for (const auto &msg : recent_msgs_)
+            participant->deliver(msg); });
+}
 void chat_room::leave(chat_session_ptr participant){
-    std::lock_guard<std::mutex> lock(m_mutex);
+    //std::lock_guard<std::mutex> lock(m_mutex);
     std::cout << "leave" << std::endl;
-    participants_.erase(participant);
+    m_strand.post([this, participant] {//post异步执行放到队列里先进先出，mutex竞争性
+         participants_.erase(participant);
+         });
+    
     }
 void chat_room::deliver(const chat_message &msg){
-    std::lock_guard<std::mutex> lock(m_mutex);
+    //std::lock_guard<std::mutex> lock(m_mutex);
     std::cerr << "room_deliver\n";
-    recent_msgs_.push_back(msg);
+    m_strand.post([this, msg] {
+         recent_msgs_.push_back(msg);
     while (recent_msgs_.size() > max_recent_msgs)
         recent_msgs_.pop_front();
     for (auto &participant : participants_)
         participant->deliver(msg);
+         });
+    
     }
 
 class chat_server{
     public:
         chat_server(boost::asio::io_service &io_service,const tcp::endpoint &endpoint):
-        acceptor_(io_service,endpoint),socket_(io_service){
+        acceptor_(io_service,endpoint),socket_(io_service),room_(io_service){
             do_accept();
         }
     private:
