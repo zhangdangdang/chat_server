@@ -16,8 +16,14 @@
 #include "JsonObject.h"
 #include <chrono>
 #include <mutex>
+#include <boost/log/trivial.hpp>
+#include <boost/log/core.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/file.hpp>//把log信息放到文件中
+#include <boost/bind/bind.hpp>
+
 //#include <boost/bind/bind.hpp>
-//using namespace boost::placeholders;
+using namespace boost::placeholders;
 
 //保证兼容性
 #if BOOST_VERSION >= 107000
@@ -58,7 +64,7 @@ class chat_session : public std::enable_shared_from_this<chat_session>
 {
 
 public:
-    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(socket_.get_io_service()) {}
+    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(GET_IO_SERVICE(socket_)) {}
 
     void start()
     {
@@ -171,7 +177,7 @@ private:
             boost::asio::async_write(
                 socket_,boost::asio::buffer(write_msgs_.front().data(),
                                             write_msgs_.front().length()),
-                m_strand.warp(
+                m_strand.wrap(
                 [this,self](boost::system::error_code ec,std::size_t){
                     if(!ec){
                         write_msgs_.pop_front();
@@ -251,9 +257,21 @@ class chat_server{
     tcp::acceptor acceptor_;
     chat_room room_;
 };
+void init(){
+    boost::log::add_file_log("sample.log");//把信息记录到文件中
+    boost::log::core::get()->set_filter(
+        boost::log::trivial::severity >= boost::log::trivial::info);//对log信息过滤大于 info事件的才会被记录通知
+}
 int main (int argc,char *argv[]){
     try{
-        GOOGLE_PROTOBUF_VERIFY_VERSION;//检查版本
+        GOOGLE_PROTOBUF_VERIFY_VERSION;//检查protobuf版本
+        init();
+        BOOST_LOG_TRIVIAL(trace) << "A trace severity message"; //详细信息追踪 记录信息是在另一个线程的 编译要加-lboost_thread
+        BOOST_LOG_TRIVIAL(debug) << "A debug severity message";//debug信息追踪
+        BOOST_LOG_TRIVIAL(info) << "An informational severity message";//信息
+        BOOST_LOG_TRIVIAL(warning) << "A warning severity message";//警告
+        BOOST_LOG_TRIVIAL(error) << "An error severity message";//错误
+        BOOST_LOG_TRIVIAL(fatal) << "A fatal severity message";//致命错误
         std::cout << argc << std::endl;
         if (argc < 2)
         {
