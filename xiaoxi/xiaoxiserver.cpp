@@ -258,10 +258,13 @@ class chat_server{
     tcp::acceptor acceptor_;
     chat_room room_;
 };
-
+void init(){
+    boost::log::core::get()->set_filter(boost::log::trivial::severity>=boost::log::trivial::info);
+}
 int main (int argc,char *argv[]){
     try{
         GOOGLE_PROTOBUF_VERIFY_VERSION;//检查protobuf版本
+        init();
         BOOST_LOG_TRIVIAL(trace)<<"A trace safe";
         BOOST_LOG_TRIVIAL(debug)<<"A debug safe";
         BOOST_LOG_TRIVIAL(info)<<"A info safe";
