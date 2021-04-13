@@ -64,7 +64,8 @@ class chat_session : public std::enable_shared_from_this<chat_session>
 {
 
 public:
-    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(GET_IO_SERVICE(socket_)) {}
+
+    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(GET_IO_SERVICE(socket)) {}
 
     void start()
     {
@@ -257,22 +258,18 @@ class chat_server{
     tcp::acceptor acceptor_;
     chat_room room_;
 };
-void init(){
-    boost::log::add_file_log("sample.log");//把信息记录到文件中
-    boost::log::core::get()->set_filter(
-        boost::log::trivial::severity >= boost::log::trivial::info);//对log信息过滤大于 info事件的才会被记录通知
-}
+
 int main (int argc,char *argv[]){
     try{
         GOOGLE_PROTOBUF_VERIFY_VERSION;//检查protobuf版本
-        init();
-        BOOST_LOG_TRIVIAL(trace) << "A trace severity message"; //详细信息追踪 记录信息是在另一个线程的 编译要加-lboost_thread
-        BOOST_LOG_TRIVIAL(debug) << "A debug severity message";//debug信息追踪
-        BOOST_LOG_TRIVIAL(info) << "An informational severity message";//信息
-        BOOST_LOG_TRIVIAL(warning) << "A warning severity message";//警告
-        BOOST_LOG_TRIVIAL(error) << "An error severity message";//错误
-        BOOST_LOG_TRIVIAL(fatal) << "A fatal severity message";//致命错误
-        std::cout << argc << std::endl;
+        BOOST_LOG_TRIVIAL(trace)<<"A trace safe";
+        BOOST_LOG_TRIVIAL(debug)<<"A debug safe";
+        BOOST_LOG_TRIVIAL(info)<<"A info safe";
+        BOOST_LOG_TRIVIAL(warning)<<"A warning ";
+        BOOST_LOG_TRIVIAL(error)<<"A error ";
+        BOOST_LOG_TRIVIAL(fatal)<<"A fatal ";
+        std::cout << "argc"<<argc << std::endl;
+        
         if (argc < 2)
         {
             std::cerr << "port\n";
@@ -288,18 +285,20 @@ int main (int argc,char *argv[]){
         std::vector<std::thread> threadGroup;
         for (int i = 0; i < 5;++i){
             threadGroup.emplace_back([&io_service, i] { 
-                std::cout<<i<<"name is"<<std::this_thread::get_id()<<std::endl;
+                BOOST_LOG_TRIVIAL(info)<<i<<"name is"<<std::this_thread::get_id()<<std::endl;
                 io_service.run(); });
         }
-        std::cout<<"main is"<<std::this_thread::get_id()<<std::endl;
+       BOOST_LOG_TRIVIAL(info)<<"main is"<<std::this_thread::get_id()<<std::endl;
         io_service.run();
         for(auto&v:threadGroup)
             v.join();
     }
     catch (std::exception &e)
     {
+        BOOST_LOG_TRIVIAL(error)<<"exception "<< e.what() ;
         std::cerr << "exception:" << e.what() << "\n";
     }
+    BOOST_LOG_TRIVIAL(info)<<"safe release all resource";
     google::protobuf::ShutdownProtobufLibrary();//主动释放proto申请的内存 内存会自动释放，但是可能会被查内存泄漏
     return 0;
 }
