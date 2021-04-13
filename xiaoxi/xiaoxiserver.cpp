@@ -21,6 +21,8 @@
 #include <boost/log/expressions.hpp>
 #include <boost/log/utility/setup/file.hpp>//把log信息放到文件中
 #include <boost/bind/bind.hpp>
+#include <future>
+#include <functional>
 
 //#include <boost/bind/bind.hpp>
 using namespace boost::placeholders;
@@ -258,7 +260,16 @@ class chat_server{
     tcp::acceptor acceptor_;
     chat_room room_;
 };
+static std::function<void()> safeQuit;
+void signalHandler(int sig){
+    BOOST_LOG_TRIVIAL(info)<<"handle system signal"<<sig;
+    if(safeQuit){
+        safeQuit();
+        safeQuit = nullptr;
+    }
+}
 void init(){
+    boost::log::add_file_log("log.log");//an tuichu caishudao wenjian
     boost::log::core::get()->set_filter(boost::log::trivial::severity>=boost::log::trivial::info);
 }
 int main (int argc,char *argv[]){
@@ -279,7 +290,10 @@ int main (int argc,char *argv[]){
             return 1;
         }
         base = std::chrono::system_clock::now();
+        
         boost::asio::io_service io_service;
+        safeQuit=[&io_service]{io_service.stop();};
+        signal(SIGINT,signalHandler);
         std::list<chat_server> servers;
         for (int i = 1; i < argc;++i){
             tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[i]));
