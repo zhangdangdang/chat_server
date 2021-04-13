@@ -58,7 +58,7 @@ class chat_session : public std::enable_shared_from_this<chat_session>
 {
 
 public:
-    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(socket_.get_io_service()) {}
+    chat_session(tcp::socket socket, chat_room &room) : socket_(std::move(socket)), room_(room),m_strand(GET_IO_SERVICE(socket)) {}
 
     void start()
     {
@@ -171,7 +171,7 @@ private:
             boost::asio::async_write(
                 socket_,boost::asio::buffer(write_msgs_.front().data(),
                                             write_msgs_.front().length()),
-                m_strand.warp(
+                m_strand.wrap(
                 [this,self](boost::system::error_code ec,std::size_t){
                     if(!ec){
                         write_msgs_.pop_front();
@@ -254,7 +254,7 @@ class chat_server{
 int main (int argc,char *argv[]){
     try{
         GOOGLE_PROTOBUF_VERIFY_VERSION;//检查版本
-        std::cout << argc << std::endl;
+        std::cout << "argv"<<argc << std::endl;
         if (argc < 2)
         {
             std::cerr << "port\n";
